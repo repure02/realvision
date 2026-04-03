@@ -1,0 +1,16 @@
+numpy
+pandas
+matplotlib
+scikit-learn
+pillow
+opencv-python
+requests
+python-dotenv
+datasets
+torch
+torchvision
+timm
+pyyaml
+streamlit
+jupyter
+tqdm

@@ -1,0 +1,27 @@
+dataset_name: realvision_v1
+
+paths:
+  raw_real_dir: data/raw/real
+  raw_ai_dir: data/raw/ai_generated
+  metadata_dir: data/metadata
+  master_metadata_csv: data/metadata/master_metadata.csv
+  processed_metadata_csv: data/metadata/processed_metadata.csv
+  processed_images_dir: data/processed/images
+
+
+classes:
+  - real
+  - ai_generated
+
+split_strategy: heldout_generator
+image_size: 320
+processing:
+  max_side: 512
+  jpeg_quality: 90
+
+env:
+  REALVISION_BATCH_SIZE: "32"
+  REALVISION_NUM_WORKERS: "0"
+  REALVISION_IMAGE_SIZE: "320"
+  REALVISION_METADATA_PATH: ""
+  PEXELS_API_KEY: ""

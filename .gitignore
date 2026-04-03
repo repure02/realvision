@@ -1,0 +1,84 @@
+# Python
+
+**pycache**/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+
+.venv/
+venv/
+env/
+realvision_venv/
+
+# Jupyter
+
+.ipynb_checkpoints/
+
+# Environment variables
+
+.env
+.env.*
+
+# macOS / OS files
+
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+
+.vscode/
+.idea/
+
+# Logs
+
+*.log
+logs/
+
+# Testing / coverage
+
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Build / packaging
+
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Project outputs
+
+outputs/
+checkpoints/
+experiments/tracking/
+
+# Reports (local artifacts)
+reports/figures/
+reports/failures/
+reports/*_test_predictions.csv
+reports/*_threshold_sweep.csv
+reports/*_chosen_threshold.txt
+
+# Data
+
+data/raw/
+data/interim/
+data/processed/
+data/metadata/
+
+# Optional large generated artifacts
+
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.h5
+
+# Streamlit cache
+
+.streamlit/secrets.toml
