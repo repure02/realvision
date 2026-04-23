@@ -1,3 +1,4 @@
+import argparse
 import csv
 import time
 from pathlib import Path
@@ -51,6 +52,17 @@ session.headers.update(
         "User-Agent": "RealVisionDatasetCollector/1.0 (educational portfolio project; contact: razvan.lemond@gmail.com)"
     }
 )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Collect real photographs from Wikimedia Commons.")
+    parser.add_argument(
+        "--target_total",
+        type=int,
+        default=TARGET_TOTAL,
+        help="How many new images to download in this run.",
+    )
+    return parser.parse_args()
 
 
 def api_get(params: Dict) -> Dict:
@@ -222,6 +234,7 @@ def safe_extmetadata_value(extmetadata: Dict, key: str) -> str:
 
 
 def main() -> None:
+    args = parse_args()
     ensure_csv_header()
     existing_ids, existing_titles = load_existing_ids_and_titles()
 
@@ -231,7 +244,7 @@ def main() -> None:
         print(f"[INFO] Scanning {category}")
         cmcontinue = None
 
-        while saved < TARGET_TOTAL:
+        while saved < args.target_total:
             try:
                 members, cmcontinue = list_category_files(category, cmcontinue=cmcontinue, cmlimit=100)
             except Exception as e:
@@ -242,7 +255,7 @@ def main() -> None:
                 break
 
             for member in members:
-                if saved >= TARGET_TOTAL:
+                if saved >= args.target_total:
                     break
 
                 title = member.get("title", "")

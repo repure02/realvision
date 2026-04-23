@@ -1,5 +1,11 @@
 from pathlib import Path
 import argparse
+import os
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MPLCONFIGDIR = PROJECT_ROOT / ".mplconfig"
+MPLCONFIGDIR.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIGDIR))
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -20,13 +26,14 @@ from sklearn.metrics import (
 from torchvision import models
 from tqdm import tqdm
 
-from src.training.dataset import create_dataloaders
+from src.training.dataset import build_logo_splits, create_dataloaders_from_dfs
 from src.utils.config import get_training_settings
+from src.utils.logo_artifacts import logo_predictions_path, to_repo_relative
+from src.utils.experiment_tracking import build_run_record, log_run, utc_now_iso
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REPORTS_DIR = PROJECT_ROOT / "reports" / "figures"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def get_device() -> torch.device:
     if torch.cuda.is_available():
@@ -42,9 +49,9 @@ if hasattr(torch, "set_float32_matmul_precision"):
 
 
 def build_model(num_classes: int = 2):
-    model = models.resnet18(weights=None)
-    in_features = model.fc.in_features
-    model.fc = nn.Linear(in_features, num_classes)
+    model = models.convnext_tiny(weights=None)
+    in_features = model.classifier[-1].in_features
+    model.classifier[-1] = nn.Linear(in_features, num_classes)
     return model
 
 
@@ -77,15 +84,17 @@ def collect_predictions(model, loader, device):
         all_generators.extend(batch["generator_name"])
         all_filepaths.extend(batch["filepath"])
 
-    results_df = pd.DataFrame({
-        "image_id": all_image_ids,
-        "source": all_sources,
-        "generator_name": all_generators,
-        "filepath": all_filepaths,
-        "true_label": all_labels,
-        "pred_label": all_preds,
-        "prob_ai": all_probs_ai,
-    })
+    results_df = pd.DataFrame(
+        {
+            "image_id": all_image_ids,
+            "source": all_sources,
+            "generator_name": all_generators,
+            "filepath": all_filepaths,
+            "true_label": all_labels,
+            "pred_label": all_preds,
+            "prob_ai": all_probs_ai,
+        }
+    )
 
     return results_df
 
@@ -159,18 +168,24 @@ def run_threshold_sweep(
             }
         )
 
-    sweep_df = pd.DataFrame(rows).sort_values(["recall", "precision"], ascending=False)
+    sweep_df = pd.DataFrame(rows).sort_values("threshold")
     sweep_df.to_csv(output_path, index=False)
     return sweep_df
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Evaluate a ResNet18 classifier.")
+    parser = argparse.ArgumentParser(description="Evaluate a ConvNeXt-Tiny LOGO checkpoint.")
     parser.add_argument(
-        "--split_column",
+        "--logo_test_generator",
         type=str,
-        default="random_split",
-        choices=["random_split", "heldout_generator_split"],
+        required=True,
+        help="Generator held out as test for the LOGO checkpoint being evaluated.",
+    )
+    parser.add_argument(
+        "--logo_val_generator",
+        type=str,
+        default=None,
+        help="Optional validation generator override for reconstructing the LOGO split.",
     )
     parser.add_argument("--checkpoint_path", type=str, default=None)
     parser.add_argument("--run_tag", type=str, default=None)
@@ -188,14 +203,23 @@ def main():
         help="Override decision threshold for prob_ai (e.g., 0.10).",
     )
     args = parser.parse_args()
+    started_at = utc_now_iso()
 
     print(f"Using device: {DEVICE}")
 
     batch_size, num_workers, image_size, metadata_path = get_training_settings()
+    if metadata_path is None:
+        raise FileNotFoundError("Training metadata path could not be resolved.")
 
-    _, _, test_loader = create_dataloaders(
+    train_df, val_df, test_df, val_gen_used = build_logo_splits(
         metadata_path=metadata_path,
-        split_column=args.split_column,
+        heldout_test_generator=args.logo_test_generator,
+        heldout_val_generator=args.logo_val_generator,
+    )
+    _, _, test_loader = create_dataloaders_from_dfs(
+        train_df=train_df,
+        val_df=val_df,
+        test_df=test_df,
         image_size=image_size,
         batch_size=batch_size,
         num_workers=num_workers,
@@ -203,10 +227,18 @@ def main():
 
     if args.checkpoint_path:
         checkpoint_path = Path(args.checkpoint_path)
+        if not checkpoint_path.is_absolute():
+            checkpoint_path = PROJECT_ROOT / checkpoint_path
     else:
-        checkpoint_path = PROJECT_ROOT / "checkpoints" / f"resnet18_{args.split_column}_best.pt"
+        checkpoint_path = (
+            PROJECT_ROOT
+            / "checkpoints"
+            / f"convnext_tiny_logo_test_{args.logo_test_generator}_best.pt"
+        )
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
-    run_tag = args.run_tag or args.split_column
+    run_tag = args.run_tag or f"logo_test_{args.logo_test_generator}"
 
     model = build_model(num_classes=2).to(DEVICE)
     model.load_state_dict(torch.load(checkpoint_path, map_location=DEVICE))
@@ -236,7 +268,10 @@ def main():
     print("\nConfusion Matrix:")
     print(cm)
 
-    results_csv_path = PROJECT_ROOT / "reports" / f"{run_tag}_test_predictions.csv"
+    if run_tag == f"logo_test_{args.logo_test_generator}":
+        results_csv_path = logo_predictions_path(args.logo_test_generator)
+    else:
+        results_csv_path = PROJECT_ROOT / "reports" / f"{run_tag}_test_predictions.csv"
     results_df.to_csv(results_csv_path, index=False)
     print(f"\nSaved predictions to: {results_csv_path}")
 
@@ -293,7 +328,7 @@ def main():
                 f"F1: {best_row['f1']:.4f}"
             )
         else:
-            best_row = sweep_df.iloc[0]
+            best_row = sweep_df.sort_values(["recall", "precision"], ascending=False).iloc[0]
             print("\n=== THRESHOLD SWEEP (TOP BY RECALL) ===")
             print(
                 f"No threshold meets target recall {target:.2f}. "
@@ -318,6 +353,46 @@ def main():
         print(f"Saved chosen threshold to: {chosen_path}")
 
     print(f"Saved figures to: {REPORTS_DIR}")
+
+    metrics = {
+        "test_acc": float(acc),
+        "test_precision": float(precision),
+        "test_recall": float(recall),
+        "test_f1": float(f1),
+        "test_roc_auc": float(roc_auc),
+        "test_pr_auc": float(pr_auc),
+        "test_size": int(len(results_df)),
+    }
+    artifacts = {
+        "predictions_csv": to_repo_relative(results_csv_path),
+        "confusion_matrix_png": str((REPORTS_DIR / f"{run_tag}_confusion_matrix.png").relative_to(PROJECT_ROOT)),
+        "roc_curve_png": str((REPORTS_DIR / f"{run_tag}_roc_curve.png").relative_to(PROJECT_ROOT)),
+        "pr_curve_png": str((REPORTS_DIR / f"{run_tag}_pr_curve.png").relative_to(PROJECT_ROOT)),
+    }
+    if args.threshold_sweep:
+        artifacts["threshold_sweep_csv"] = str(sweep_path.relative_to(PROJECT_ROOT))
+        artifacts["chosen_threshold_txt"] = str(chosen_path.relative_to(PROJECT_ROOT))
+
+    run_record = build_run_record(
+        run_name=run_tag,
+        task="evaluate",
+        split_type="logo",
+        args=args,
+        metadata_path=metadata_path,
+        checkpoint_path=checkpoint_path,
+        metrics=metrics,
+        artifacts=artifacts,
+        extra={
+            "model_name": "convnext_tiny",
+            "device": str(DEVICE),
+            "run_group": "logo_evaluation",
+            "test_generator": args.logo_test_generator,
+            "val_generator": val_gen_used,
+        },
+        started_at=started_at,
+    )
+    run_path = log_run(run_record)
+    print(f"Logged run metadata to: {run_path}")
 
 
 if __name__ == "__main__":

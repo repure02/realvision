@@ -17,6 +17,19 @@ OUTPUT_METADATA = PATHS_CONFIG.get("processed_metadata_csv") or (METADATA_DIR / 
 
 OUTPUT_DIR = PATHS_CONFIG.get("processed_images_dir") or (PROJECT_ROOT / "data" / "processed" / "images")
 
+
+def load_existing_processed_rows() -> dict[str, dict]:
+    if not OUTPUT_METADATA.exists():
+        return {}
+
+    existing_df = pd.read_csv(OUTPUT_METADATA)
+    if "image_id" not in existing_df.columns:
+        return {}
+
+    existing_df["image_id"] = existing_df["image_id"].astype(str)
+    return existing_df.set_index("image_id").to_dict("index")
+
+
 def resize_keep_aspect(img: Image.Image, max_side: int) -> Image.Image:
     width, height = img.size
     longest = max(width, height)
@@ -44,8 +57,12 @@ def process_image(input_path: Path, output_path: Path, max_side: int, jpeg_quali
 
 def main():
     df = pd.read_csv(INPUT_METADATA)
+    df["image_id"] = df["image_id"].astype(str)
 
     processed_rows = []
+    existing_rows = load_existing_processed_rows()
+    reused_count = 0
+    processed_count = 0
 
     max_side = PROCESSING_CONFIG["max_side"]
     jpeg_quality = PROCESSING_CONFIG["jpeg_quality"]
@@ -56,6 +73,18 @@ def main():
         output_filename = Path(row["filename"]).stem + ".jpg"
         output_path = OUTPUT_DIR / row["label"] / output_filename
 
+        image_id = str(row["image_id"])
+        existing_row = existing_rows.get(image_id)
+
+        if existing_row and output_path.exists():
+            reused_row = row.copy()
+            for key, value in existing_row.items():
+                reused_row[key] = value
+            reused_row["filepath"] = str(output_path.relative_to(PROJECT_ROOT))
+            processed_rows.append(reused_row)
+            reused_count += 1
+            continue
+
         success = process_image(input_path, output_path, max_side, jpeg_quality)
 
         if success:
@@ -64,12 +93,15 @@ def main():
             new_row["format"] = "jpg"
             new_row["width"], new_row["height"] = Image.open(output_path).size
             processed_rows.append(new_row)
+            processed_count += 1
 
     processed_df = pd.DataFrame(processed_rows)
     processed_df.to_csv(OUTPUT_METADATA, index=False)
 
     print(f"\nSaved processed metadata to: {OUTPUT_METADATA}")
     print(f"Total processed images: {len(processed_df)}")
+    print(f"Reused existing processed images: {reused_count}")
+    print(f"Newly processed images: {processed_count}")
 
 
 if __name__ == "__main__":

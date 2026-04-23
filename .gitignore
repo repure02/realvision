@@ -24,6 +24,7 @@ realvision_venv/
 
 .DS_Store
 Thumbs.db
+.mplconfig/
 
 # IDE / Editor
 
@@ -55,7 +56,8 @@ dist/
 
 outputs/
 checkpoints/
-experiments/tracking/
+!checkpoints/
+!checkpoints/.gitkeep
 
 # Reports (local artifacts)
 reports/figures/
@@ -63,6 +65,16 @@ reports/failures/
 reports/*_test_predictions.csv
 reports/*_threshold_sweep.csv
 reports/*_chosen_threshold.txt
+!reports/
+!reports/.gitkeep
+!reports/final_inference_calibration_predictions.csv
+!reports/final_inference_generator_metrics.csv
+!reports/final_inference_threshold_sweep.csv
+!reports/final_inference_chosen_threshold.txt
+!reports/logo_summary.csv
+!reports/logo_summary_enriched.csv
+!reports/dataset_specs.csv
+!reports/baseline_manifest.json
 
 # Data
 

@@ -1,3 +1,4 @@
+import argparse
 import time
 import csv
 import requests
@@ -44,6 +45,17 @@ MIN_HEIGHT = 512
 SLEEP_BETWEEN_REQUESTS = 1.0
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Collect real photographs from Pexels.")
+    parser.add_argument(
+        "--target_total",
+        type=int,
+        default=TARGET_TOTAL,
+        help="How many new images to download in this run.",
+    )
+    return parser.parse_args()
+
+
 def get_extension_from_url(url: str) -> str:
     path = urlparse(url).path.lower()
     if path.endswith(".png"):
@@ -70,6 +82,8 @@ def download_image(url: str, save_path: Path):
 
 
 def main():
+    args = parse_args()
+
     if not API_KEY:
         raise ValueError("PEXELS_API_KEY not found in environment.")
 
@@ -106,7 +120,7 @@ def main():
 
         for query in QUERIES:
             page = 1
-            while saved < TARGET_TOTAL:
+            while saved < args.target_total:
                 try:
                     data, headers = search_photos(query=query, page=page, per_page=PER_PAGE)
                 except Exception as e:
@@ -121,7 +135,7 @@ def main():
                 print(f"[INFO] query={query}, page={page}, remaining={remaining}")
 
                 for photo in photos:
-                    if saved >= TARGET_TOTAL:
+                    if saved >= args.target_total:
                         break
 
                     image_id = str(photo["id"])

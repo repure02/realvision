@@ -13,7 +13,7 @@ classes:
   - real
   - ai_generated
 
-split_strategy: heldout_generator
+split_strategy: logo
 image_size: 320
 processing:
   max_side: 512

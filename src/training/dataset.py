@@ -3,6 +3,7 @@ from typing import Optional
 
 import pandas as pd
 from PIL import Image
+from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
@@ -10,8 +11,7 @@ from torchvision import transforms
 from src.utils.config import get_env_or_config, load_dataset_config, get_paths_config
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_METADATA_PATH = PROJECT_ROOT / "data" / "metadata" / "processed_metadata_with_splits.csv"
-ALT_METADATA_PATH = PROJECT_ROOT / "data" / "metadata" / "processed_metadata_with_splits_224.csv"
+DEFAULT_METADATA_PATH = PROJECT_ROOT / "data" / "metadata" / "processed_metadata.csv"
 
 
 def resolve_metadata_path() -> Path:
@@ -29,8 +29,6 @@ def resolve_metadata_path() -> Path:
         return metadata_csv
     if DEFAULT_METADATA_PATH.exists():
         return DEFAULT_METADATA_PATH
-    if ALT_METADATA_PATH.exists():
-        return ALT_METADATA_PATH
     return DEFAULT_METADATA_PATH
 
 
@@ -101,8 +99,15 @@ def get_default_transforms(image_size: int = 224):
     )
 
     train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(image_size, scale=(0.9, 1.0)),
+        transforms.RandomResizedCrop(image_size, scale=(0.7, 1.0)),
         transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomApply(
+            [transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05)],
+            p=0.5,
+        ),
+        transforms.RandomGrayscale(p=0.1),
+        transforms.RandomApply([transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0))], p=0.2),
+        transforms.RandomAdjustSharpness(sharpness_factor=2.0, p=0.2),
         transforms.ToTensor(),
         normalize,
     ])
@@ -117,11 +122,7 @@ def get_default_transforms(image_size: int = 224):
     return train_transform, eval_transform
 
 
-def load_split_dataframe(
-    metadata_path: Path,
-    split_column: str,
-    split_value: str,
-) -> pd.DataFrame:
+def _load_metadata_df(metadata_path: Path) -> pd.DataFrame:
     df = pd.read_csv(metadata_path)
 
     columns_to_drop = {
@@ -138,12 +139,21 @@ def load_split_dataframe(
         "label_a",
         "label_b",
         "file_ext_from_path",
-        "processed_filepath",
     }
 
     drop_list = [col for col in df.columns if col.lower() in columns_to_drop]
     if drop_list:
         df = df.drop(columns=drop_list)
+
+    return df
+
+
+def load_split_dataframe(
+    metadata_path: Path,
+    split_column: str,
+    split_value: str,
+) -> pd.DataFrame:
+    df = _load_metadata_df(metadata_path)
 
     if split_column not in df.columns:
         raise ValueError(f"Split column '{split_column}' not found in metadata.")
@@ -156,6 +166,119 @@ def load_split_dataframe(
         )
 
     return split_df
+
+
+def build_logo_splits(
+    metadata_path: Path,
+    heldout_test_generator: str,
+    heldout_val_generator: Optional[str] = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str]:
+    df = _load_metadata_df(metadata_path)
+
+    if "generator_name" not in df.columns:
+        raise ValueError("Metadata must include 'generator_name' for LOGO splits.")
+    if "label" not in df.columns:
+        raise ValueError("Metadata must include 'label' for LOGO splits.")
+    if "random_split" not in df.columns:
+        raise ValueError("Metadata must include 'random_split' for LOGO splits.")
+
+    ai_df = df[df["label"] == "ai_generated"].copy()
+    real_df = df[df["label"] == "real"].copy()
+
+    available_generators = sorted(set(ai_df["generator_name"].dropna().astype(str)))
+    if heldout_test_generator not in available_generators:
+        raise ValueError(
+            f"heldout_test_generator='{heldout_test_generator}' not found in metadata."
+        )
+
+    remaining = [g for g in available_generators if g != heldout_test_generator]
+    if heldout_val_generator is None:
+        if not remaining:
+            raise ValueError("Not enough generators to create a validation split.")
+        # Pick the most frequent remaining generator for a stable val set.
+        counts = ai_df[ai_df["generator_name"].isin(remaining)]["generator_name"].value_counts()
+        heldout_val_generator = counts.index[0]
+    elif heldout_val_generator not in remaining:
+        raise ValueError(
+            "heldout_val_generator must be different from heldout_test_generator and exist in metadata."
+        )
+
+    ai_test = ai_df[ai_df["generator_name"] == heldout_test_generator].copy()
+    ai_val = ai_df[ai_df["generator_name"] == heldout_val_generator].copy()
+    ai_train = ai_df[
+        ~ai_df["generator_name"].isin([heldout_test_generator, heldout_val_generator])
+    ].copy()
+
+    real_train = real_df[real_df["random_split"] == "train"].copy()
+    real_val = real_df[real_df["random_split"] == "val"].copy()
+    real_test = real_df[real_df["random_split"] == "test"].copy()
+
+    train_df = pd.concat([ai_train, real_train], ignore_index=True)
+    val_df = pd.concat([ai_val, real_val], ignore_index=True)
+    test_df = pd.concat([ai_test, real_test], ignore_index=True)
+
+    return train_df, val_df, test_df, heldout_val_generator
+
+
+def _build_stratify_labels(df: pd.DataFrame) -> pd.Series:
+    generator_series = df.get("generator_name", pd.Series(index=df.index, dtype="object"))
+    generator_series = generator_series.fillna("none").astype(str)
+    labels = df["label"].astype(str)
+    stratify = labels.where(labels != "ai_generated", labels + "::" + generator_series)
+    value_counts = stratify.value_counts()
+    if (value_counts < 2).any():
+        return labels
+    return stratify
+
+
+def build_final_inference_splits(
+    metadata_path: Path,
+    val_fraction: float = 0.15,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    if not 0.05 <= val_fraction <= 0.40:
+        raise ValueError("val_fraction must be between 0.05 and 0.40 for final inference splits.")
+
+    df = _load_metadata_df(metadata_path)
+    if "random_split" not in df.columns:
+        raise ValueError("Metadata must include 'random_split' for final inference splits.")
+    if "label" not in df.columns:
+        raise ValueError("Metadata must include 'label' for final inference splits.")
+
+    development_df = df[df["random_split"].isin(["train", "val"])].copy()
+    calibration_df = df[df["random_split"] == "test"].copy()
+
+    if development_df.empty or calibration_df.empty:
+        raise ValueError(
+            "Final inference splits require non-empty development rows (train/val) and "
+            "calibration rows (test) in random_split."
+        )
+
+    stratify_labels = _build_stratify_labels(development_df)
+    train_df, val_df = train_test_split(
+        development_df,
+        test_size=val_fraction,
+        stratify=stratify_labels,
+        random_state=42,
+    )
+
+    return (
+        train_df.reset_index(drop=True),
+        val_df.reset_index(drop=True),
+        calibration_df.reset_index(drop=True),
+    )
+
+
+def print_split_summary(df: pd.DataFrame, name: str) -> None:
+    if df.empty:
+        print(f"{name} split is empty.")
+        return
+    label_counts = df["label"].value_counts().to_dict()
+    print(f"{name} split size: {len(df)} | labels: {label_counts}")
+    if "generator_name" in df.columns:
+        ai_only = df[df["label"] == "ai_generated"]
+        if not ai_only.empty:
+            gen_counts = ai_only["generator_name"].value_counts().head(10).to_dict()
+            print(f"{name} top AI generators: {gen_counts}")
 
 
 def create_dataloaders(
@@ -182,6 +305,8 @@ def create_dataloaders(
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
+        pin_memory=True,
+        persistent_workers=(num_workers > 0),
     )
 
     val_loader = DataLoader(
@@ -189,6 +314,8 @@ def create_dataloaders(
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
+        pin_memory=True,
+        persistent_workers=(num_workers > 0),
     )
 
     test_loader = DataLoader(
@@ -196,6 +323,52 @@ def create_dataloaders(
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
+        pin_memory=True,
+        persistent_workers=(num_workers > 0),
+    )
+
+    return train_loader, val_loader, test_loader
+
+
+def create_dataloaders_from_dfs(
+    train_df: pd.DataFrame,
+    val_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    image_size: int = 224,
+    batch_size: int = 32,
+    num_workers: int = 0,
+):
+    train_transform, eval_transform = get_default_transforms(image_size=image_size)
+
+    train_dataset = RealVisionDataset(train_df, transform=train_transform)
+    val_dataset = RealVisionDataset(val_df, transform=eval_transform)
+    test_dataset = RealVisionDataset(test_df, transform=eval_transform)
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
+        persistent_workers=(num_workers > 0),
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+        persistent_workers=(num_workers > 0),
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+        persistent_workers=(num_workers > 0),
     )
 
     return train_loader, val_loader, test_loader

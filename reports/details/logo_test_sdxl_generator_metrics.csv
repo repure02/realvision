@@ -1,0 +1,3 @@
+generator_name,count,tp,fp,fn,tn,precision,recall,f1,accuracy
+none,524,0,36,0,488,0.0,0.0,0.0,0.931298
+sdxl,414,347,0,67,0,1.0,0.838164,0.911958,0.838164

@@ -1,0 +1,21 @@
+{
+  "baseline_name": "expanded_10_generator_logo",
+  "status": "official",
+  "locked_on": "2026-04-20",
+  "summary_csv": "reports/logo_summary.csv",
+  "details_dir": "reports/details",
+  "historical_comparison_csv": "reports/logo_summary_baseline_5gen.csv",
+  "checkpoint_pattern": "checkpoints/convnext_tiny_logo_test_<generator>_best.pt",
+  "generators": [
+    "dalle3",
+    "hidream_i1",
+    "ideogram_v2",
+    "imagen4",
+    "midjourney",
+    "openai_4o",
+    "recraft_v2",
+    "sd21",
+    "sd3",
+    "sdxl"
+  ]
+}

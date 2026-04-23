@@ -15,6 +15,7 @@ INPUT_FILES = [
     METADATA_DIR / "pexels_metadata.csv",
     METADATA_DIR / "wikimedia_metadata.csv",
     METADATA_DIR / "defactify_metadata.csv",
+    METADATA_DIR / "rapidata_non_sd_metadata.csv",
 ]
 
 

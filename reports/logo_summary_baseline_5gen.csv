@@ -1,0 +1,6 @@
+best_val_recall,test_loss,test_acc,test_recall,test_generator,val_generator,generator_metrics_csv,test_predictions_csv
+0.3701923076923077,0.9591850300673314,0.5749636098981077,0.3023255813953488,dalle3,midjourney,realvision/reports/logo_test_dalle3_generator_metrics.csv,realvision/reports/logo_test_dalle3_predictions.csv
+0.9855072463768116,0.7724113418569778,0.702513966480447,0.5288461538461539,midjourney,sdxl,realvision/reports/logo_test_midjourney_generator_metrics.csv,realvision/reports/logo_test_midjourney_predictions.csv
+0.6875,0.37994903997755936,0.8716119828815977,0.8628428927680798,sd21,midjourney,realvision/reports/logo_test_sd21_generator_metrics.csv,realvision/reports/logo_test_sd21_predictions.csv
+0.6081730769230769,0.16789866815651616,0.9340175953079178,0.9136125654450262,sd3,midjourney,realvision/reports/logo_test_sd3_generator_metrics.csv,realvision/reports/logo_test_sd3_predictions.csv
+0.6394230769230769,0.4109630987089889,0.8361344537815126,0.8309178743961353,sdxl,midjourney,realvision/reports/logo_test_sdxl_generator_metrics.csv,realvision/reports/logo_test_sdxl_predictions.csv

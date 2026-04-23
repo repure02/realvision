@@ -1,0 +1,11 @@
+best_val_recall,test_loss,test_acc,test_recall,test_generator,val_generator,generator_metrics_csv,test_predictions_csv,macro_avg_test_recall,macro_avg_test_acc
+0.8293269230769231,0.2215121048457414,0.9150485436893204,0.9333333333333332,recraft_v2,midjourney,reports/details/logo_test_recraft_v2_generator_metrics.csv,reports/details/logo_test_recraft_v2_predictions.csv,0.899904,0.897024
+0.8413461538461539,0.2809420624546394,0.9205298013245032,0.9267015706806284,sd3,midjourney,reports/details/logo_test_sd3_generator_metrics.csv,reports/details/logo_test_sd3_predictions.csv,0.899904,0.897024
+0.8173076923076923,0.1921446249612326,0.9211165048543688,0.92,imagen4,midjourney,reports/details/logo_test_imagen4_generator_metrics.csv,reports/details/logo_test_imagen4_predictions.csv,0.899904,0.897024
+0.8365384615384616,0.2786233153158021,0.875,0.9166666666666666,ideogram_v2,midjourney,reports/details/logo_test_ideogram_v2_generator_metrics.csv,reports/details/logo_test_ideogram_v2_predictions.csv,0.899904,0.897024
+0.8461538461538461,0.2344587033503764,0.9091891891891892,0.9152119700748128,sd21,midjourney,reports/details/logo_test_sd21_generator_metrics.csv,reports/details/logo_test_sd21_predictions.csv,0.899904,0.897024
+0.8100961538461539,0.3351662428054994,0.8567961165048543,0.8966666666666666,hidream_i1,midjourney,reports/details/logo_test_hidream_i1_generator_metrics.csv,reports/details/logo_test_hidream_i1_predictions.csv,0.899904,0.897024
+0.7475961538461539,0.271811946269644,0.8957189901207464,0.896640826873385,dalle3,midjourney,reports/details/logo_test_dalle3_generator_metrics.csv,reports/details/logo_test_dalle3_predictions.csv,0.899904,0.897024
+0.8125,0.2626201162523806,0.894456289978678,0.893719806763285,sdxl,midjourney,reports/details/logo_test_sdxl_generator_metrics.csv,reports/details/logo_test_sdxl_predictions.csv,0.899904,0.897024
+0.8413461538461539,0.2883816080764659,0.9089805825242718,0.89,openai_4o,midjourney,reports/details/logo_test_openai_4o_generator_metrics.csv,reports/details/logo_test_openai_4o_predictions.csv,0.899904,0.897024
+0.92512077294686,0.3257951928104492,0.8734042553191489,0.8100961538461539,midjourney,sdxl,reports/details/logo_test_midjourney_generator_metrics.csv,reports/details/logo_test_midjourney_predictions.csv,0.899904,0.897024
