@@ -60,9 +60,11 @@ Recommended reviewer flow:
 1. Install dependencies
 
 ```bash
+git lfs install
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+git lfs pull
 ```
 
 2. Run data prep
@@ -152,6 +154,32 @@ If you want this repository to represent the fully finalized product, the publis
 - `reports/logo_summary_enriched.csv`
 - `reports/dataset_specs.csv`
 - `reports/baseline_manifest.json`
+
+## Model Distribution
+
+This repository is intended to be runnable after a normal Git clone, so the published model weights are tracked with Git LFS.
+
+For users cloning the project:
+
+```bash
+git lfs install
+git clone <repo-url>
+cd realvision
+git lfs pull
+```
+
+If the app or CLI says a checkpoint is still a Git LFS pointer, it means the repository was cloned without downloading the large model objects yet.
+
+For maintainers publishing the final project:
+
+```bash
+git lfs install
+git add .gitattributes checkpoints/*.pt
+git commit -m "Track published checkpoints with Git LFS"
+git push
+```
+
+GitHub Actions is configured to fetch LFS objects during CI so validation and Docker builds use the real checkpoints instead of pointer files.
 
 ## Experiment Tracking
 

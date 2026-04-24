@@ -16,14 +16,17 @@ from PIL import Image
 
 try:
     from src.utils.config import get_training_settings
+    from src.utils.checkpoint_utils import checkpoint_issue
 except ModuleNotFoundError:
     alt_root = Path(__file__).resolve().parents[1]
     if str(alt_root) not in sys.path:
         sys.path.insert(0, str(alt_root))
     try:
         from src.utils.config import get_training_settings
+        from src.utils.checkpoint_utils import checkpoint_issue
     except ModuleNotFoundError:
         get_training_settings = None
+        checkpoint_issue = None
 
 REPORTS_DIR = PROJECT_ROOT / "reports"
 CHECKPOINTS_DIR = PROJECT_ROOT / "checkpoints"
@@ -95,7 +98,8 @@ def list_available_logo_generators() -> list[str]:
 def get_model_options() -> tuple[dict[str, tuple[Path, float | None]], str]:
     options: dict[str, tuple[Path, float | None]] = {}
     default_label = ""
-    if FINAL_CHECKPOINT_PATH.exists():
+    final_issue = checkpoint_issue(FINAL_CHECKPOINT_PATH) if checkpoint_issue is not None else None
+    if final_issue is None:
         options["Final Inference Model"] = (
             FINAL_CHECKPOINT_PATH,
             load_threshold_from_file(FINAL_THRESHOLD_PATH),
@@ -103,13 +107,19 @@ def get_model_options() -> tuple[dict[str, tuple[Path, float | None]], str]:
         default_label = "Final Inference Model"
 
     for generator in list_available_logo_generators():
-        options[f"LOGO Benchmark: {generator}"] = (
-            CHECKPOINTS_DIR / f"convnext_tiny_logo_test_{generator}_best.pt",
-            None,
-        )
+        checkpoint_path = CHECKPOINTS_DIR / f"convnext_tiny_logo_test_{generator}_best.pt"
+        issue = checkpoint_issue(checkpoint_path) if checkpoint_issue is not None else None
+        if issue is None:
+            options[f"LOGO Benchmark: {generator}"] = (
+                checkpoint_path,
+                None,
+            )
 
     if not options:
-        raise FileNotFoundError("No final inference or LOGO checkpoints were found.")
+        raise FileNotFoundError(
+            "No usable final inference or LOGO checkpoints were found. "
+            "If you cloned from GitHub, run `git lfs install` once and then `git lfs pull`."
+        )
     if not default_label:
         default_label = next(iter(options))
     return options, default_label
@@ -240,8 +250,9 @@ uploaded = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png", "webp
 if uploaded is not None:
     image = Image.open(uploaded).convert("RGB")
 
-    if not selected_checkpoint.exists():
-        st.error(f"Checkpoint not found: {selected_checkpoint}")
+    issue = checkpoint_issue(selected_checkpoint) if checkpoint_issue is not None else None
+    if issue is not None:
+        st.error(issue)
         st.stop()
 
     decision_threshold = float(manual_threshold)

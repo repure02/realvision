@@ -10,6 +10,7 @@ from torchvision import models
 from PIL import Image
 from torchvision import transforms
 
+from src.utils.checkpoint_utils import checkpoint_issue
 from src.utils.config import get_training_settings
 
 
@@ -194,8 +195,9 @@ def main() -> None:
         checkpoint_path_arg=args.checkpoint_path,
         logo_test_generator=args.logo_test_generator,
     )
-    if not checkpoint_path.exists():
-        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    issue = checkpoint_issue(checkpoint_path)
+    if issue is not None:
+        raise FileNotFoundError(issue)
 
     decision_threshold = args.decision_threshold if args.decision_threshold is not None else saved_threshold
 
