@@ -133,6 +133,26 @@ Helpful options:
 - `--target_recall <value>` controls threshold selection for the final inference checkpoint.
 - `--backfill_logo_details --backfill_missing_only` repairs missing LOGO detail CSVs before the `reports` stage.
 
+## Release Readiness
+
+There are two levels of validation in this repository:
+
+- `make ci` is the lightweight quality gate used in GitHub Actions. It allows missing heavyweight artifacts so pull requests and clean clones can still pass basic verification.
+- `make release-check` is the strict pre-release gate. It requires the canonical final checkpoint and validates the dataset, final inference artifacts, and locked LOGO baseline without `--allow_missing`.
+
+If you want this repository to represent the fully finalized product, the published release bundle should include:
+
+- `checkpoints/convnext_tiny_final_inference_best.pt`
+- `checkpoints/convnext_tiny_logo_test_*_best.pt`
+- `reports/final_inference_calibration_predictions.csv`
+- `reports/final_inference_generator_metrics.csv`
+- `reports/final_inference_threshold_sweep.csv`
+- `reports/final_inference_chosen_threshold.txt`
+- `reports/logo_summary.csv`
+- `reports/logo_summary_enriched.csv`
+- `reports/dataset_specs.csv`
+- `reports/baseline_manifest.json`
+
 ## Experiment Tracking
 
 Training and evaluation runs now write lightweight experiment metadata to `runs/`:

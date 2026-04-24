@@ -61,8 +61,6 @@ outputs/
 # Keep only the canonical deployment checkpoint and the LOGO benchmark suite.
 checkpoints/*
 !checkpoints/.gitkeep
-!checkpoints/convnext_tiny_final_inference_best.pt
-!checkpoints/convnext_tiny_logo_test_*_best.pt
 
 # Reports
 # Keep summary-level ML Ops artifacts, ignore bulky debug/detail outputs.
@@ -74,6 +72,7 @@ reports/*_threshold_sweep.csv
 reports/*_chosen_threshold.txt
 !reports/
 !reports/.gitkeep
+!reports/final_inference_calibration_predictions.csv
 !reports/final_inference_generator_metrics.csv
 !reports/final_inference_threshold_sweep.csv
 !reports/final_inference_chosen_threshold.txt
@@ -81,6 +80,7 @@ reports/*_chosen_threshold.txt
 !reports/logo_summary_enriched.csv
 !reports/dataset_specs.csv
 !reports/baseline_manifest.json
+reports/logo_summary_baseline_*.csv
 
 # Data
 # Keep only the canonical processed metadata; ignore raw/intermediate data.
@@ -100,6 +100,11 @@ runs/*
 *.ckpt
 *.onnx
 *.h5
+
+# Release artifacts
+# Re-include the canonical published weights after the generic binary ignore rules.
+!checkpoints/convnext_tiny_final_inference_best.pt
+!checkpoints/convnext_tiny_logo_test_*_best.pt
 
 # Streamlit cache
 
