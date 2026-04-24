@@ -29,7 +29,7 @@ This project is designed to demonstrate:
 
 ## Current Status
 
-This repository is now in the **cross-generator robustness phase**. The project already includes a working dataset, metadata-driven LOGO training pipeline, a final inference-model workflow, report generation, failure analysis, CLI inference, and a Streamlit demo.
+This repository is in its **final portfolio-ready state**. It includes a working dataset, metadata-driven LOGO benchmarking pipeline, a finalized deployment model workflow, report generation, CLI inference, and a Streamlit demo backed by the published checkpoint bundle.
 
 Completed so far:
 - dataset assembled and processed with metadata and splits in `data/metadata/processed_metadata.csv`
@@ -45,7 +45,7 @@ Completed so far:
 - LOGO summary and failure reports generated in `reports/`
 - final inference checkpoint workflow implemented in `src/training/train.py`
 
-The main technical question is no longer whether the model can fit the task at all, but how well it generalizes to **unseen generator families**.
+The main technical claim of the project is that the detector generalizes meaningfully to **unseen generator families**, not just to generators seen during training.
 
 ## Reproducible Pipeline
 
@@ -140,13 +140,12 @@ Helpful options:
 There are two levels of validation in this repository:
 
 - `make ci` is the lightweight quality gate used in GitHub Actions. It allows missing heavyweight artifacts so pull requests and clean clones can still pass basic verification.
-- `make release-check` is the strict pre-release gate. It requires the canonical final checkpoint and validates the dataset, final inference artifacts, and locked LOGO baseline without `--allow_missing`.
+- `make release-check` is the strict pre-release gate. It requires the canonical final checkpoint and validates the published final inference bundle, dataset metadata, and locked LOGO baseline.
 
-If you want this repository to represent the fully finalized product, the published release bundle should include:
+The finalized published bundle should include:
 
 - `checkpoints/convnext_tiny_final_inference_best.pt`
 - `checkpoints/convnext_tiny_logo_test_*_best.pt`
-- `reports/final_inference_calibration_predictions.csv`
 - `reports/final_inference_generator_metrics.csv`
 - `reports/final_inference_threshold_sweep.csv`
 - `reports/final_inference_chosen_threshold.txt`
@@ -170,11 +169,15 @@ git lfs pull
 
 If the app or CLI says a checkpoint is still a Git LFS pointer, it means the repository was cloned without downloading the large model objects yet.
 
+The repository intentionally does **not** publish `reports/final_inference_calibration_predictions.csv`. That file is a local training/evaluation byproduct, while the published bundle keeps only the threshold, threshold sweep, and generator-level summary artifacts needed for reproducible deployment and release validation.
+
 For maintainers publishing the final project:
 
 ```bash
 git lfs install
-git add .gitattributes checkpoints/*.pt
+git add .gitattributes
+git add checkpoints/convnext_tiny_final_inference_best.pt
+git add checkpoints/convnext_tiny_logo_test_*_best.pt
 git commit -m "Track published checkpoints with Git LFS"
 git push
 ```
@@ -309,106 +312,14 @@ Key artifacts:
 - `reports/details/logo_test_*_predictions.csv`
 - `reports/logo_summary_baseline_5gen.csv`
 
-## Planned Research Question
+## Future Work
 
-**Can a detector trained on a diverse set of known AI generators generalize to *any* unseen or future generator, and how can we measure and improve that cross-generator robustness?**
+Natural follow-up work for a later iteration would be:
 
-This project will also explore:
-- performance on held-out generators
-- robustness to resizing and compression
-- calibration quality
-- failure modes by generator and image type
-- adaptation when new generator data is added
-
-## Best Next Move
-
-The clearest next step is to **formalize the expanded-data result as the new baseline** and then run one focused follow-up experiment.
-
-Why this is the best next move:
-- the core data-diversity experiment already produced a strong positive result
-- the biggest improvements occurred on the exact generators that were previously weakest
-- changing multiple things at once now would make the story less defensible
-- the repository should first lock in the stronger baseline before exploring further changes
-
-Recommended implementation strategy:
-1. Treat the 10-generator LOGO run as the new baseline.
-2. Keep the before-vs-after comparison visible in the README and reports.
-3. Regenerate supporting summaries and failure-analysis artifacts for the new run.
-4. Run one focused follow-up experiment, preferably calibration analysis or threshold analysis on the stronger model.
-5. Only after that baseline is locked in, explore architecture or loss-function changes.
-
-Success for the next iteration should be measured primarily by:
-- maintaining the stronger **macro average LOGO recall**
-- preserving gains on **DALL·E 3** and **Midjourney**
-- improving calibration and decision quality without losing cross-generator robustness
-
-## Project Roadmap
-
-### 1. Dataset Design
-- collect diverse real photographs
-- collect diverse AI-generated images from modern generators
-- build metadata-rich dataset
-- remove duplicates and low-quality samples
-- create robust train/validation/test partitions for real-image support within LOGO
-- create leave-one-generator-out evaluation splits for generalization testing
-
-### 2. Exploratory Data Analysis
-- inspect class and source balance
-- analyze image sizes, formats, and aspect ratios
-- visually inspect samples
-- detect dataset artifacts and shortcut risks
-- audit for leakage and near-duplicates
-
-### 3. Model Training
-- build a strong baseline with transfer learning
-- test architectures such as ResNet, EfficientNet, or ConvNeXt
-- train using reproducible configuration-based experiments
-- track metrics and checkpoints
-
-### 4. Evaluation
-- accuracy, precision, recall, F1
-- ROC-AUC and PR-AUC
-- confusion matrix
-- threshold analysis
-- calibration analysis
-- generator-wise evaluation
-- leave-one-generator-out (LOGO) evaluation
-
-### 5. Failure Analysis
-- inspect false positives and false negatives
-- identify generator-specific weaknesses
-- understand hard cases such as photorealistic AI images or real images with synthetic-looking patterns
-
-### 6. Interpretability
-- Grad-CAM or similar visualization methods
-- suspicious-region heatmaps
-- analysis of what cues the model uses
-
-### 7. Deployment
-- build a Streamlit app for image upload and inference
-- display label, class probabilities, confidence, and optional heatmap
-
-## Immediate Roadmap
-
-The highest-priority sequence from the current project state is:
-
-1. **Promote the expanded LOGO run to the main baseline**
-   - treat the 10-generator result as the primary benchmark for the project
-
-2. **Generate updated summary artifacts**
-   - rebuild reports and failure-analysis outputs so they reflect the new run consistently
-
-3. **Add calibration analysis**
-   - quantify under-confidence vs over-confidence with reliability plots or ECE on the stronger baseline
-
-4. **Run one focused model ablation**
-   - compare the current ConvNeXt-Tiny baseline against one alternative or one loss-function change
-
-5. **Add interpretability**
-   - generate Grad-CAM examples for true positives, false negatives, and hard real-image false positives
-
-6. **Polish the demo and project narrative**
-   - make the README, reports, and app all tell the same updated cross-generator robustness story
+- calibration plots such as reliability diagrams or ECE
+- robustness testing under resizing, compression, or post-processing
+- interpretability artifacts such as Grad-CAM examples
+- architecture or loss-function ablations beyond the current ConvNeXt-Tiny baseline
 
 ## Repository Structure
 

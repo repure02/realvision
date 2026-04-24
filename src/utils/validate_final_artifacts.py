@@ -37,21 +37,73 @@ def assert_close(name: str, actual: float, expected: float, tolerance: float = 1
         raise ValueError(f"{name} mismatch: actual={actual}, expected={expected}")
 
 
-def validate_final_artifacts(
-    predictions_path: Path,
+def validate_threshold_outputs(
     metrics_path: Path,
     sweep_path: Path,
     threshold_path: Path,
-) -> None:
+) -> tuple[pd.DataFrame, pd.DataFrame, float]:
     missing = [
         path
-        for path in (predictions_path, metrics_path, sweep_path, threshold_path)
+        for path in (metrics_path, sweep_path, threshold_path)
         if not path.exists()
     ]
     if missing:
         raise FileNotFoundError("Missing final artifacts: " + ", ".join(str(path) for path in missing))
 
     threshold = load_threshold(threshold_path)
+    sweep_df = pd.read_csv(sweep_path)
+    required_sweep_columns = {"threshold", "accuracy", "precision", "recall", "f1"}
+    missing_sweep_columns = required_sweep_columns - set(sweep_df.columns)
+    if missing_sweep_columns:
+        raise ValueError(f"Missing threshold sweep columns: {sorted(missing_sweep_columns)}")
+    if list(sweep_df["threshold"]) != sorted(sweep_df["threshold"]):
+        raise ValueError("Threshold sweep must be sorted by threshold ascending.")
+
+    chosen_rows = sweep_df[sweep_df["threshold"].round(6) == round(threshold, 6)]
+    if chosen_rows.empty:
+        raise ValueError(f"Chosen threshold {threshold:.2f} is missing from threshold sweep.")
+
+    metrics_df = pd.read_csv(metrics_path)
+    required_metric_columns = {
+        "generator_name",
+        "count",
+        "tp",
+        "fp",
+        "fn",
+        "tn",
+        "precision",
+        "recall",
+        "f1",
+        "accuracy",
+    }
+    missing_metric_columns = required_metric_columns - set(metrics_df.columns)
+    if missing_metric_columns:
+        raise ValueError(f"Missing generator metric columns: {sorted(missing_metric_columns)}")
+
+    return metrics_df, sweep_df, threshold
+
+
+def validate_final_artifacts(
+    predictions_path: Path,
+    metrics_path: Path,
+    sweep_path: Path,
+    threshold_path: Path,
+    allow_missing_predictions: bool = False,
+) -> None:
+    metrics_df, sweep_df, threshold = validate_threshold_outputs(
+        metrics_path=metrics_path,
+        sweep_path=sweep_path,
+        threshold_path=threshold_path,
+    )
+
+    if not predictions_path.exists():
+        if allow_missing_predictions:
+            print(f"Validated published final artifacts at threshold={threshold:.2f}")
+            print("Calibration predictions CSV is not included in the published bundle.")
+            print(f"Generator rows: {len(metrics_df)}")
+            return
+        raise FileNotFoundError(f"Missing final artifacts: {predictions_path}")
+
     predictions_df = pd.read_csv(predictions_path)
     required_prediction_columns = {
         "image_id",
@@ -77,35 +129,11 @@ def validate_final_artifacts(
         if thresholds != {round(threshold, 6)}:
             raise ValueError(f"decision_threshold column does not match chosen threshold: {thresholds}")
 
-    sweep_df = pd.read_csv(sweep_path)
-    if list(sweep_df["threshold"]) != sorted(sweep_df["threshold"]):
-        raise ValueError("Threshold sweep must be sorted by threshold ascending.")
-
     chosen_rows = sweep_df[sweep_df["threshold"].round(6) == round(threshold, 6)]
-    if chosen_rows.empty:
-        raise ValueError(f"Chosen threshold {threshold:.2f} is missing from threshold sweep.")
-
     computed = metric_row(predictions_df["true_label"].astype(int), actual_pred)
     chosen = chosen_rows.iloc[0]
     for metric_name, value in computed.items():
         assert_close(f"sweep {metric_name}", float(chosen[metric_name]), value)
-
-    metrics_df = pd.read_csv(metrics_path)
-    required_metric_columns = {
-        "generator_name",
-        "count",
-        "tp",
-        "fp",
-        "fn",
-        "tn",
-        "precision",
-        "recall",
-        "f1",
-        "accuracy",
-    }
-    missing_metric_columns = required_metric_columns - set(metrics_df.columns)
-    if missing_metric_columns:
-        raise ValueError(f"Missing generator metric columns: {sorted(missing_metric_columns)}")
 
     expected_rows = []
     for generator, group in predictions_df.groupby("generator_name", sort=True):
@@ -178,6 +206,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Exit successfully if final artifacts are not present, useful for lightweight CI clones.",
     )
+    parser.add_argument(
+        "--allow_missing_predictions",
+        action="store_true",
+        help="Allow the calibration predictions CSV to be absent, useful for validating the published bundle.",
+    )
     return parser.parse_args()
 
 
@@ -192,7 +225,7 @@ def main() -> None:
     if args.allow_missing and any(not path.exists() for path in paths):
         print("Final inference artifacts not found; skipping final artifact validation.")
         return
-    validate_final_artifacts(*paths)
+    validate_final_artifacts(*paths, allow_missing_predictions=args.allow_missing_predictions)
 
 
 if __name__ == "__main__":

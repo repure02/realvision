@@ -16,7 +16,7 @@ validate:
 release-check:
 	test -f checkpoints/convnext_tiny_final_inference_best.pt
 	python3 -m src.utils.validate_dataset
-	python3 -m src.utils.validate_final_artifacts
+	python3 -m src.utils.validate_final_artifacts --allow_missing_predictions
 	python3 -m src.utils.validate_logo_baseline
 
 docker-build:

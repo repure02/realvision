@@ -67,12 +67,12 @@ checkpoints/*
 reports/details/
 reports/figures/
 reports/failures/
+reports/final_inference_calibration_predictions.csv
 reports/*_test_predictions.csv
 reports/*_threshold_sweep.csv
 reports/*_chosen_threshold.txt
 !reports/
 !reports/.gitkeep
-!reports/final_inference_calibration_predictions.csv
 !reports/final_inference_generator_metrics.csv
 !reports/final_inference_threshold_sweep.csv
 !reports/final_inference_chosen_threshold.txt
