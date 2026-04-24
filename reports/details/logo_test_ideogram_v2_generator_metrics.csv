@@ -1,3 +1,0 @@
-generator_name,count,tp,fp,fn,tn,precision,recall,f1,accuracy
-ideogram_v2,300,293,0,7,0,1.0,0.976667,0.988196,0.976667
-none,524,0,51,0,473,0.0,0.0,0.0,0.902672

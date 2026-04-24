@@ -1,2 +1,0 @@
-checkpoint_name,checkpoint_path,completed_at,dataset_name,dataset_version,metadata_path,metadata_rows,metric_test_acc,model_name,run_group,run_id,run_name,split_type,started_at,status,task,timestamp
-convnext_tiny_heldout_generator_split_best.pt,checkpoints/convnext_tiny_heldout_generator_split_best.pt,2026-04-20T12:24:42+00:00,realvision_v1,realvision_v1,data/metadata/processed_metadata.csv,6993,0.9,convnext_tiny,smoke,20260420T122442Z_smoke_test,smoke_test,heldout_generator_split,2026-04-20T12:24:42+00:00,completed,evaluate,2026-04-20T12:24:42+00:00

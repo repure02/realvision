@@ -1,3 +1,0 @@
-generator_name,count,tp,fp,fn,tn,precision,recall,f1,accuracy
-none,524,0,59,0,465,0.0,0.0,0.0,0.887405
-openai_4o,300,260,0,40,0,1.0,0.866667,0.928571,0.866667

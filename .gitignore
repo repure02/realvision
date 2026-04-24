@@ -1,6 +1,7 @@
 # Python
 
-**pycache**/
+__pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 
@@ -55,11 +56,17 @@ dist/
 # Project outputs
 
 outputs/
-checkpoints/
-!checkpoints/
-!checkpoints/.gitkeep
 
-# Reports (local artifacts)
+# Checkpoints
+# Keep only the canonical deployment checkpoint and the LOGO benchmark suite.
+checkpoints/*
+!checkpoints/.gitkeep
+!checkpoints/convnext_tiny_final_inference_best.pt
+!checkpoints/convnext_tiny_logo_test_*_best.pt
+
+# Reports
+# Keep summary-level ML Ops artifacts, ignore bulky debug/detail outputs.
+reports/details/
 reports/figures/
 reports/failures/
 reports/*_test_predictions.csv
@@ -67,7 +74,6 @@ reports/*_threshold_sweep.csv
 reports/*_chosen_threshold.txt
 !reports/
 !reports/.gitkeep
-!reports/final_inference_calibration_predictions.csv
 !reports/final_inference_generator_metrics.csv
 !reports/final_inference_threshold_sweep.csv
 !reports/final_inference_chosen_threshold.txt
@@ -77,11 +83,15 @@ reports/*_chosen_threshold.txt
 !reports/baseline_manifest.json
 
 # Data
-
+# Keep only the canonical processed metadata; ignore raw/intermediate data.
 data/raw/
 data/interim/
 data/processed/
-data/metadata/
+data/metadata/*
+!data/metadata/processed_metadata.csv
+
+# Run tracking
+runs/*
 
 # Optional large generated artifacts
 

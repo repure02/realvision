@@ -1,3 +1,0 @@
-generator_name,count,tp,fp,fn,tn,precision,recall,f1,accuracy
-imagen4,300,266,0,34,0,1.0,0.886667,0.939929,0.886667
-none,524,0,43,0,481,0.0,0.0,0.0,0.917939

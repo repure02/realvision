@@ -1,3 +1,0 @@
-generator_name,count,tp,fp,fn,tn,precision,recall,f1,accuracy
-hidream_i1,300,273,0,27,0,1.0,0.91,0.95288,0.91
-none,524,0,97,0,427,0.0,0.0,0.0,0.814885
