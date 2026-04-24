@@ -50,7 +50,7 @@ jobs:
       - name: Validate LOGO baseline artifacts
         run: |
           if [ -f reports/logo_summary.csv ]; then
-            python -m src.utils.validate_logo_baseline
+            python -m src.utils.validate_logo_baseline --allow_missing_details
           else
             echo "reports/logo_summary.csv not found; skipping LOGO baseline validation."
           fi

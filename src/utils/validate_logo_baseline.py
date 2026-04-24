@@ -20,7 +20,7 @@ REQUIRED_COLUMNS = {
 }
 
 
-def validate_summary(summary_path: Path) -> None:
+def validate_summary(summary_path: Path, allow_missing_details: bool = False) -> None:
     if not summary_path.exists():
         raise FileNotFoundError(f"Missing summary file: {summary_path}")
 
@@ -34,6 +34,7 @@ def validate_summary(summary_path: Path) -> None:
         raise ValueError(f"Duplicate test_generator values found: {dupes}")
 
     errors: list[str] = []
+    missing_details: list[str] = []
     for _, row in df.iterrows():
         test_generator = str(row["test_generator"])
         for col in ("generator_metrics_csv", "test_predictions_csv"):
@@ -43,7 +44,10 @@ def validate_summary(summary_path: Path) -> None:
                 continue
             path = resolve_repo_path(value)
             if not path.exists():
-                errors.append(f"{test_generator}: missing {col}: {value}")
+                if allow_missing_details:
+                    missing_details.append(f"{test_generator}: missing {col}: {value}")
+                else:
+                    errors.append(f"{test_generator}: missing {col}: {value}")
                 continue
 
     if errors:
@@ -56,6 +60,12 @@ def validate_summary(summary_path: Path) -> None:
     print(f"Rows: {len(df)}")
     print(f"Average test recall: {avg_recall:.4f}")
     print(f"Average test accuracy: {avg_acc:.4f}")
+    if missing_details:
+        print(
+            "Skipped missing detail artifact checks because --allow_missing_details was set:"
+        )
+        for item in missing_details:
+            print(f"- {item}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,6 +76,11 @@ def parse_args() -> argparse.Namespace:
         default="reports/logo_summary.csv",
         help="Path to the canonical LOGO summary CSV.",
     )
+    parser.add_argument(
+        "--allow_missing_details",
+        action="store_true",
+        help="Do not fail if referenced reports/details CSVs are absent, useful for lightweight CI clones.",
+    )
     return parser.parse_args()
 
 
@@ -74,7 +89,7 @@ def main() -> None:
     summary_path = Path(args.summary_path)
     if not summary_path.is_absolute():
         summary_path = PROJECT_ROOT / summary_path
-    validate_summary(summary_path)
+    validate_summary(summary_path, allow_missing_details=args.allow_missing_details)
 
 
 if __name__ == "__main__":

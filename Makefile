@@ -6,7 +6,7 @@ ci:
 	python3 -m src.inference.predict --help
 	python3 -m src.utils.validate_dataset --allow_missing
 	python3 -m src.utils.validate_final_artifacts --allow_missing
-	@if [ -f reports/logo_summary.csv ]; then python3 -m src.utils.validate_logo_baseline; else echo "LOGO summary not found; skipping LOGO baseline validation."; fi
+	@if [ -f reports/logo_summary.csv ]; then python3 -m src.utils.validate_logo_baseline --allow_missing_details; else echo "reports/logo_summary.csv not found; skipping LOGO baseline validation."; fi
 
 validate:
 	python3 -m src.utils.validate_dataset
